@@ -1,144 +1,138 @@
-# Quality Classifier
+# quality-filter
 
-This repository provides tools to label, fine-tune, evaluate, and test text quality across multiple dimensions using large language models (LLMs). It supports high-throughput evaluation, multi-language detection, and robust model training for multi-label classification.
+Repository for processing, cleaning, evaluating, and training multilingual text quality classification models, with a special focus on linguistic, educational, and cultural criteria.
 
 ## Repository Structure
 
 ```
-quality-classifier/
-├── src/
-│   ├── label_quality.py                # LLM-based labeling
-│   ├── split_languajes.py             # Language detection & splitting
-│   ├── train_bert.py                  # Fine-tuning BERT for multilabel classification
-│   ├── test_bert.py                   # Evaluate trained BERT models on test set
-├── prompts/
-│   └── base_prompt.txt                # Base prompt with placeholder
-├── data/
-│   └── textos_500k/                   # Saved truncated evaluation texts
-├── requirements.txt
-└── README.md
+src/
+  clean_data/
+    detect_outliers.py
+    undersampling.py
+  inference/
+    label_quality.py
+    promt.txt
+  training/
+    test_bert.py
+    train_bert.py
+  utils/
+    bootstrap.py
+    split_languajes.py
 ```
 
-## Installation
+## Main Scripts Description
 
-1. **Create virtual environment**:
+### `src/training/train_bert.py`
 
-```bash
-python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-```
+Trains a BERT (or compatible) model for multilabel text classification, using custom metrics and balancing methods (`undersample`/`oversample`). Allows selecting which labels to train and saves validation and test metrics.
 
-2. **Install dependencies**:
+### `src/training/test_bert.py`
 
-```bash
+Evaluates one or more trained models on a test set, calculating F1, precision, and recall metrics per class, and saves the results in a JSON file.
+
+### `src/utils/bootstrap.py`
+
+Filters a text dataset using a trained model, selecting those that exceed a probability threshold for at least one label. Supports parallel processing with multiple GPUs and generates probability histograms.
+
+### `src/inference/label_quality.py`
+
+Evaluates texts using an LLM (via vLLM) and a detailed FSM prompt (see `promt.txt`). Extracts and validates the JSON structure of the response, ensuring compliance with formatting and scoring logic rules.
+
+### `src/utils/split_languajes.py`
+
+Detects the language of each text in a JSON file and splits the texts into separate files by language (`es`, `en`, `pt`). Uses parallel processing for faster detection.
+
+### `src/clean_data/detect_outliers.py`
+
+Detects and removes outliers in multilabel datasets using cross-validation and binary cross-entropy (BCE) loss as the outlier score. Saves a new clean JSON file.
+
+### `src/clean_data/undersampling.py`
+
+Balances multilingual datasets by the originality label, ensuring an equal number of positive and negative examples per language.
+
+### `src/inference/promt.txt`
+
+Detailed prompt for FSM text quality evaluation, used by `label_quality.py`. Defines criteria, output format, and justification rules.
+
+## Dependency Installation
+
+It is recommended to create a virtual environment and then install the required dependencies, for example:
+
+```sh
 pip install -r requirements.txt
 ```
 
-## Usage
+Main dependencies:
 
-### 1. LLM-based Quality Labeling
+- `transformers`
+- `datasets`
+- `scikit-learn`
+- `torch`
+- `matplotlib`
+- `langdetect`
+- `tqdm`
+- `vllm` (for LLM evaluation)
+- `pandas`
+- `numpy`
 
-The `label_quality.py` script uses LLMs (via vLLM) to evaluate texts based on various quality metrics:
+## Usage Example
 
-- `coherencia`
-- `desinformacion`
-- `representacion_latinoamericana`
-- `nivel_educacional`
-- `originalidad`
-- `etapa_1_valida`
-- `score_final`
+### Training
 
-The prompt must include the placeholder `[PEGUE AQUÍ EL TEXTO]` which is replaced for each input.
-
-**Example:**
-
-```bash
-python src/label_quality.py \
-    --prompt_path prompts/base_prompt.txt \
-    --dataset_path <path_to_hf_dataset> \
-    --model_path nvidia/Llama-3_3-Nemotron-Super-49B-v1 \
-    --download_dir <hf_model_dir> \
-    --output_path outputs/resultados.json \
-    --text_column texto \
-    --batch_size 50 \
-    --tensor_parallel_size 8
+```sh
+python src/training/train_bert.py \
+  --json_path datos.json \
+  --output_dir modelos/ \
+  --logging_dir logs/ \
+  --model_name xlm-roberta-base \
+  --label_ids 0 1 2 3 4 5 \
+  --threshold 0.5 \
+  --balance_method undersample
 ```
 
-### 2. Language Detection & Splitting
+### Evaluation
 
-Split a JSON file by language (Spanish, English, Portuguese) using `langdetect` in parallel:
-
-```bash
-python src/split_languajes.py
+```sh
+python src/training/test_bert.py \
+  --json_path test.json \
+  --model_dirs modelos/xlm-roberta-base_undersample \
+  --threshold 0.5 \
+  --label_keys coherencia desinformacion representacion_latinoamericana nivel_educacional originalidad score_final
 ```
 
-**Modifies inside:**
+### Bootstrap Filtering
 
-- Input: `data/test.json`
-- Output: `test_textos_es_.json`, `test_textos_en_.json`, etc.
-
-### 3. BERT-based Multilabel Classification
-
-Use `train_bert.py` to train a BERT-based model that predicts quality scores per category. Each label is in [0.0, 1.0] and thresholded to create binary labels.
-
-**Example:**
-
-```bash
-python src/train_bert.py \
-    --json_path outputs/resultados.json \
-    --output_dir models/ \
-    --logging_dir logs/ \
-    --model_name answerdotai/ModernBERT-base \
-    --label_ids 0 1 2 3 4 5 \
-    --threshold 0.5 \
-    --balance_method oversample
+```sh
+python src/utils/bootstrap.py \
+  --input_path textos.json \
+  --model_path modelos/xlm-roberta-base_undersample \
+  --label_ids 0 1 2 3 4 5 \
+  --threshold 0.3 \
+  --output_path filtrados/
 ```
 
-#### Labels and IDs
+### LLM Evaluation
 
-| ID  | Label                          |
-| --- | ------------------------------ |
-| 0   | coherencia                     |
-| 1   | desinformacion                 |
-| 2   | representacion_latinoamericana |
-| 3   | nivel_educacional              |
-| 4   | originalidad                   |
-| 5   | score_final                    |
-
-**Balance Options:** `oversample`, `undersample`, or leave empty.
-
-**Model Options:** Any HuggingFace Transformer model compatible with `AutoModelForSequenceClassification`.
-
-### 4. Testing Trained Models
-
-The script `test_bert.py` allows for batch evaluation of multiple fine-tuned models against the same labeled test set.
-
-**Example:**
-
-```bash
-python src/test_bert.py \
-  --json_path outputs/resultados.json \
-  --model_dirs models/ModernBERT-base_oversample models/Llama2_undersample \
-  --label_keys coherencia desinformacion representacion_latinoamericana nivel_educacional originalidad score_final \
-  --threshold 0.5
+```sh
+python src/inference/label_quality.py \
+  --prompt_path src/inference/promt.txt \
+  --dataset_path datos_filtrados/ \
+  --model_path llama3-70b-instruct \
+  --output_path resultados_llm.json
 ```
 
-Outputs include macro F1 score and class-wise precision, recall, and F1 per model.
+## Pre-commit
 
-### Output Files
+The repository includes configuration for `black`, `isort`, `flake8`, and other code quality hooks. Install pre-commit and activate it with:
 
-- Fine-tuned model and tokenizer (in `output_dir/...`)
-- Evaluation metrics (validation + test) in `test_metrics.json`
-- Truncated input texts in `data/textos_500k/`
-
-## Features
-
-- Multi-label classification with score thresholding
-- LLM evaluation with JSON parsing and defensive validation
-- Language-aware preprocessing
-- Class balancing (under/over-sampling)
-- Distributed GPU support via vLLM (e.g. Llama-3, Mistral)
+```sh
+pre-commit install
+```
 
 ## License
 
-This project is released under the MIT License.
+MIT License.
+
+---
+
+For questions or improvements, contact the author or open an issue.

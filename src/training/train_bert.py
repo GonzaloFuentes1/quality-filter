@@ -7,7 +7,12 @@ import numpy as np
 import pandas as pd
 import torch
 from datasets import Dataset, DatasetDict
-from sklearn.metrics import f1_score, precision_recall_fscore_support
+from sklearn.metrics import (
+    f1_score,
+    precision_recall_fscore_support,
+    precision_score,
+    recall_score
+)
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 from transformers import (
@@ -15,7 +20,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     Trainer,
-    TrainingArguments,
+    TrainingArguments
 )
 
 # === Environment setup ===
@@ -23,7 +28,9 @@ os.environ["WANDB_MODE"] = "disabled"
 os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 
-def undersample_data(df: pd.DataFrame, label_column: str, threshold: float = 0.5):
+def undersample_data(
+    df: pd.DataFrame, label_column: str, threshold: float = 0.5
+):
     df = df.copy()
     df["binary_labels"] = df[label_column].apply(
         lambda x: [1 if score >= threshold else 0 for score in x]
@@ -38,14 +45,20 @@ def undersample_data(df: pd.DataFrame, label_column: str, threshold: float = 0.5
         if min_class == 0:
             continue
         pos_indices = positives.index.tolist()
-        neg_indices = negatives.sample(n=min_class, random_state=42).index.tolist()
+        neg_indices = negatives.sample(
+            n=min_class, random_state=42
+        ).index.tolist()
         selected_indices.update(pos_indices + neg_indices)
 
-    balanced_df = df.loc[list(selected_indices)].drop(columns=["binary_labels"])
+    balanced_df = df.loc[list(selected_indices)].drop(
+        columns=["binary_labels"]
+    )
     return balanced_df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 
-def oversample_data(df: pd.DataFrame, label_column: str, threshold: float = 0.5):
+def oversample_data(
+    df: pd.DataFrame, label_column: str, threshold: float = 0.5
+):
     df = df.copy()
     df["binary_labels"] = df[label_column].apply(
         lambda x: [1 if score >= threshold else 0 for score in x]
@@ -61,38 +74,30 @@ def oversample_data(df: pd.DataFrame, label_column: str, threshold: float = 0.5)
             continue
         if len(positives) < max_class:
             pos_indices = resample(
-                positives, replace=True, n_samples=max_class, random_state=42
+                positives, replace=True, n_samples=max_class,
+                random_state=42
             ).index.tolist()
             neg_indices = negatives.index.tolist()
         else:
             pos_indices = positives.index.tolist()
             neg_indices = resample(
-                negatives, replace=True, n_samples=max_class, random_state=42
+                negatives, replace=True, n_samples=max_class,
+                random_state=42
             ).index.tolist()
         selected_indices.update(pos_indices + neg_indices)
 
-    balanced_df = df.loc[list(selected_indices)].drop(columns=["binary_labels"])
+    balanced_df = df.loc[list(selected_indices)].drop(
+        columns=["binary_labels"]
+    )
     return balanced_df.sample(frac=1, random_state=42).reset_index(drop=True)
 
 
 def load_data(
     json_path: str, label_ids: list, balance_method: str = None
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """
-    Carga los datos de un archivo JSON con estructura personalizada.
-
-    Args:
-        json_path: Ruta al archivo JSON
-        label_ids: Lista de identificadores de etiquetas a utilizar
-        balance_method: Método de balanceo opcional ("undersample" o "oversample")
-
-    Returns:
-        Una tupla con los DataFrames de entrenamiento, validación y prueba
-    """
     with open(json_path, "r", encoding="utf-8") as file:
         data = json.load(file)
 
-    # Mapear nombres de columnas a índices
     label_columns = {
         0: "coherencia",
         1: "desinformacion",
@@ -101,10 +106,10 @@ def load_data(
         4: "originalidad",
         5: "score_final"
     }
-    # Seleccionar únicamente las etiquetas especificadas en label_ids
-    selected_columns = [label_columns[id] for id in label_ids if id in label_columns]
 
-    # Extraer textos y scores seleccionados
+    selected_columns = [
+        label_columns[id] for id in label_ids if id in label_columns
+    ]
     texts = [item["texto"] for item in data]
     scores = [
         [float(item[col]) for col in selected_columns]
@@ -112,11 +117,15 @@ def load_data(
     ]
 
     df = pd.DataFrame({"text": texts, "labels": scores})
-    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
-    val_df, test_df = train_test_split(test_df, test_size=0.5, random_state=42)
+    train_df, test_df = train_test_split(
+        df, test_size=0.2, random_state=42
+    )
+    val_df, test_df = train_test_split(
+        test_df, test_size=0.5, random_state=42
+    )
     train_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
-    test_df.reset_index(drop=True)
+    test_df.reset_index(drop=True, inplace=True)
 
     if balance_method == "undersample":
         train_df = undersample_data(train_df, label_column="labels")
@@ -132,15 +141,23 @@ def compute_metrics(eval_pred: Any, threshold: float) -> Dict[str, float]:
     pred_labels = (probs >= threshold).astype(int)
     true_labels = (labels >= threshold).astype(int)
 
-    f1_micro = f1_score(true_labels, pred_labels, average="micro", zero_division=0)
-    f1_macro = f1_score(true_labels, pred_labels, average="macro", zero_division=0)
+    y_true_bin = (true_labels.sum(axis=1) > 0).astype(int)
+    y_pred_bin = (pred_labels.sum(axis=1) > 0).astype(int)
+
+    f1_micro = f1_score(
+        true_labels, pred_labels, average="micro", zero_division=0
+    )
+    f1_macro = f1_score(
+        true_labels, pred_labels, average="macro", zero_division=0
+    )
     f1_weighted = f1_score(
         true_labels, pred_labels, average="weighted", zero_division=0
     )
 
-    precision_class, recall_class, f1_class, _ = precision_recall_fscore_support(
-        true_labels, pred_labels, average=None, zero_division=0
-    )
+    precision_class, recall_class, f1_class, _ = \
+        precision_recall_fscore_support(
+            true_labels, pred_labels, average=None, zero_division=0
+        )
 
     per_class_metrics = {
         f"class_{i+1}_precision": p for i, p in enumerate(precision_class)
@@ -163,37 +180,34 @@ def compute_metrics(eval_pred: Any, threshold: float) -> Dict[str, float]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Entrenamiento de modelo multilabel classification"
-    )
-    parser.add_argument("--json_path", required=True, help="Ruta al archivo JSON")
-    parser.add_argument(
-        "--output_dir", required=True, help="Directorio base para guardar el modelo"
+        description="Entrenamiento multilabel classification"
     )
     parser.add_argument(
-        "--logging_dir",
-        required=True,
-        help="Directorio base para guardar los logs de entrenamiento",
+        "--json_path", required=True, help="Ruta al archivo JSON"
     )
     parser.add_argument(
-        "--model_name", required=True, help="Nombre del modelo pre-entrenado"
+        "--output_dir", required=True,
+        help="Directorio base para guardar el modelo"
     )
     parser.add_argument(
-        "--label_ids",
-        nargs="+",
-        type=int,
-        required=True,
-        help="Índices de los labels en moderationCategories",
+        "--logging_dir", required=True,
+        help="Directorio base para guardar logs de entrenamiento"
     )
     parser.add_argument(
-        "--threshold",
-        type=float,
-        default=0.5,
-        help="Threshold para convertir las predicciones en etiquetas binarias",
+        "--model_name", required=True,
+        help="Nombre del modelo preentrenado"
     )
     parser.add_argument(
-        "--balance_method",
-        choices=["undersample", "oversample"],
-        help="Método de balanceo para el conjunto de entrenamiento",
+        "--label_ids", nargs="+", type=int, required=True,
+        help="Índices de los labels en moderationCategories"
+    )
+    parser.add_argument(
+        "--threshold", type=float, default=0.5,
+        help="Threshold para etiquetas binarias"
+    )
+    parser.add_argument(
+        "--balance_method", choices=["undersample", "oversample"],
+        help="Método de balanceo para entrenamiento"
     )
     args = parser.parse_args()
 
@@ -207,35 +221,37 @@ def main() -> None:
     os.makedirs(full_logging_dir, exist_ok=True)
 
     train_df, val_df, test_df = load_data(
-        args.json_path, args.label_ids, balance_method=args.balance_method
+        args.json_path, args.label_ids, args.balance_method
     )
 
-    dataset = DatasetDict(
-        {
-            "train": Dataset.from_pandas(train_df),
-            "validation": Dataset.from_pandas(val_df),
-            "test": Dataset.from_pandas(test_df),
-        }
-    )
+    dataset = DatasetDict({
+        "train": Dataset.from_pandas(train_df),
+        "validation": Dataset.from_pandas(val_df),
+        "test": Dataset.from_pandas(test_df)
+    })
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
 
     def tokenize_function(examples):
         return tokenizer(
-            examples["text"], padding="max_length", truncation=True, max_length=512)
+            examples["text"],
+            padding="max_length",
+            truncation=True,
+            max_length=512
+        )
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
     config = AutoConfig.from_pretrained(
         args.model_name,
         num_labels=len(args.label_ids),
-        problem_type="multi_label_classification",
-        # regression, multi_label_classification
+        problem_type="multi_label_classification"
     )
 
     model = AutoModelForSequenceClassification.from_pretrained(
         args.model_name, config=config
     )
+
     training_args = TrainingArguments(
         output_dir=full_output_dir,
         eval_strategy="epoch",
@@ -250,7 +266,7 @@ def main() -> None:
         weight_decay=0.01,
         warmup_ratio=0.1,
         logging_dir=full_logging_dir,
-        logging_steps=10,
+        logging_steps=10
     )
 
     trainer = Trainer(
@@ -259,7 +275,7 @@ def main() -> None:
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["validation"],
         tokenizer=tokenizer,
-        compute_metrics=lambda eval_pred: compute_metrics(eval_pred, args.threshold),
+        compute_metrics=lambda p: compute_metrics(p, args.threshold)
     )
 
     trainer.train()
@@ -273,15 +289,17 @@ def main() -> None:
     test_predictions = test_results.predictions
     test_labels = test_results.label_ids
 
-    test_metrics = compute_metrics((test_predictions, test_labels), args.threshold)
+    test_metrics = compute_metrics(
+        (test_predictions, test_labels), args.threshold
+    )
     for key, value in test_metrics.items():
-        print(f"{key}: {value: .4f}")
+        print(f"{key}: {value:.4f}")
 
-    test_metrics_output_path = os.path.join(full_output_dir, "test_metrics.json")
-    with open(test_metrics_output_path, "w") as f:
+    output_metrics_path = os.path.join(full_output_dir, "test_metrics.json")
+    with open(output_metrics_path, "w") as f:
         json.dump(test_metrics, f, indent=4)
 
-    print(f"\nTest metrics saved to {test_metrics_output_path}")
+    print(f"\nTest metrics saved to {output_metrics_path}")
 
 
 if __name__ == "__main__":
