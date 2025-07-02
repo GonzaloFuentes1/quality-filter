@@ -1,17 +1,14 @@
 import argparse
-import os
 import json
+import os
+
+import matplotlib.pyplot as plt
 import torch
 import torch.multiprocessing as mp
-import matplotlib.pyplot as plt
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSequenceClassification,
-    AutoConfig
-)
+from datasets import Dataset, load_from_disk
 from torch.nn.functional import sigmoid
 from tqdm import tqdm
-from datasets import load_from_disk, Dataset
+from transformers import AutoConfig, AutoModelForSequenceClassification, AutoTokenizer
 
 
 def load_model_and_tokenizer(model_path, label_ids):

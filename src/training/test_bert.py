@@ -1,18 +1,12 @@
-import os
-import json
-import torch
 import argparse
-import numpy as np
+import json
+import os
+
 import pandas as pd
+import torch
 from datasets import Dataset
-from transformers import (
-    AutoTokenizer,
-    AutoModelForSequenceClassification
-)
-from sklearn.metrics import (
-    f1_score,
-    precision_recall_fscore_support
-)
+from sklearn.metrics import f1_score, precision_recall_fscore_support
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
 

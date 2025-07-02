@@ -1,6 +1,7 @@
 import json
-from langdetect import detect
 from multiprocessing import Pool
+
+from langdetect import detect
 from tqdm import tqdm
 
 n_samples = ""
@@ -9,9 +10,6 @@ input_path = (
 )
 
 
-# ------------------------------
-# Función para detección de idioma
-# ------------------------------
 def detectar_idioma(entry):
     try:
         lang = detect(entry["texto"])
@@ -23,16 +21,10 @@ def detectar_idioma(entry):
         }
 
 
-# ------------------------------
-# Carga del JSON
-# ------------------------------
 with open(input_path, "r", encoding="utf-8") as f:
     data = json.load(f)
 
 
-# ------------------------------
-# Paralelización
-# ------------------------------
 with Pool(processes=100) as pool:
     results = list(
         tqdm(pool.imap(detectar_idioma, data), total=len(data))

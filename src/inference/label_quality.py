@@ -1,8 +1,9 @@
 import argparse
-import re
 import json
 import logging
 import os
+import re
+
 from datasets import Dataset
 from vllm import LLM, SamplingParams
 
@@ -16,18 +17,22 @@ logging.basicConfig(
 MAX_CHARACTERS = 5000
 TEXT_OUTPUT_DIR = ""
 
+
 def load_base_prompt(prompt_path):
     with open(prompt_path, encoding='utf-8') as f:
         return f.read()
 
+
 def insert_prompt(base_prompt: str, prompt_to_insert: str):
     return base_prompt.replace("[PEGUE AQUÍ EL TEXTO]", prompt_to_insert)
+
 
 def update_text(example, base_prompt, text_column):
     texto = example[text_column][:MAX_CHARACTERS]
     example["eval_prompt"] = insert_prompt(base_prompt, texto)
     example["texto_truncado"] = texto
     return example
+
 
 def extract_json_block(text):
     try:
@@ -121,6 +126,7 @@ def extract_json_block(text):
         logging.error(f"Error inesperado al extraer JSON: {e}")
         return None
 
+
 def validar_score_final(evaluacion):
     try:
         c = evaluacion["coherencia"]
@@ -151,11 +157,13 @@ def validar_score_final(evaluacion):
     except Exception as e:
         return [f"Error de validación: {e}"]
 
+
 def save_text_as_file(output_dir, idx, text):
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, f"{idx}.txt")
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
+
 
 def process_batch(llm, batch, sampling_params, start_idx):
     outputs = llm.generate(
@@ -201,6 +209,7 @@ def process_batch(llm, batch, sampling_params, start_idx):
 
     return results
 
+
 def main(args):
     try:
         base_prompt = load_base_prompt(args.prompt_path)
@@ -245,6 +254,7 @@ def main(args):
 
     except Exception as e:
         logging.error(f"Error general: {str(e)}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

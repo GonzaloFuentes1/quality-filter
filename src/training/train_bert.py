@@ -7,12 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 from datasets import Dataset, DatasetDict
-from sklearn.metrics import (
-    f1_score,
-    precision_recall_fscore_support,
-    precision_score,
-    recall_score
-)
+from sklearn.metrics import f1_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 from transformers import (
@@ -20,7 +15,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     Trainer,
-    TrainingArguments
+    TrainingArguments,
 )
 
 # === Environment setup ===
@@ -140,9 +135,6 @@ def compute_metrics(eval_pred: Any, threshold: float) -> Dict[str, float]:
     probs = torch.sigmoid(torch.tensor(logits)).numpy()
     pred_labels = (probs >= threshold).astype(int)
     true_labels = (labels >= threshold).astype(int)
-
-    y_true_bin = (true_labels.sum(axis=1) > 0).astype(int)
-    y_pred_bin = (pred_labels.sum(axis=1) > 0).astype(int)
 
     f1_micro = f1_score(
         true_labels, pred_labels, average="micro", zero_division=0
@@ -266,7 +258,8 @@ def main() -> None:
         weight_decay=0.01,
         warmup_ratio=0.1,
         logging_dir=full_logging_dir,
-        logging_steps=10
+        logging_steps=10,
+        bf16=True
     )
 
     trainer = Trainer(
