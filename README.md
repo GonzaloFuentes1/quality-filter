@@ -1,3 +1,31 @@
+# Configuration: config.py
+
+All scripts in this project use a single centralized configuration file: `src/config.py`.
+This file contains all paths, hyperparameters, and environment variables for the pipeline.
+
+**How to use/configure:**
+
+- Edit `src/config.py` to set all data/model directories, batch sizes, CUDA devices, and other parameters for each script or pipeline stage.
+- Each section in `config.py` is dedicated to a part of the pipeline (training, inference, cleaning, etc.), and has its own `CUDA_VISIBLE_DEVICES`, input/output paths, and hyperparameters.
+- You can override any value with environment variables, e.g.:
+
+```bash
+export TRAINING_CUDA_VISIBLE_DEVICES=0,1
+export INFERENCE_CUDA_VISIBLE_DEVICES=2
+export DATA_DIR=/path/to/data
+```
+
+**Example config section:**
+
+```python
+# Training configuration
+BATCH_SIZE = get_env('BATCH_SIZE', 32, int)
+TRAINING_CUDA_VISIBLE_DEVICES = get_env('TRAINING_CUDA_VISIBLE_DEVICES', '0')
+TRAINING_OUTPUT_DIR = get_env('TRAINING_OUTPUT_DIR', os.path.join(DATA_DIR, 'training_outputs'))
+```
+
+> **Tip:** Never hardcode paths or device settings in scripts. Always use the variables from `config.py`.
+
 # Quality Filter for Text Data
 
 A comprehensive pipeline for training and evaluating text quality models using transformer-based architectures. This project provides tools for data preprocessing, model training, inference, and evaluation of text quality metrics.
@@ -30,10 +58,14 @@ quality-filter/
 ### Requirements
 
 - Python 3.8+
-- PyTorch with CUDA support
-- Transformers library
-- Accelerate library
-- Additional dependencies: datasets, sklearn, pandas, numpy, tqdm
+- PyTorch with CUDA support (`torch`)
+- HuggingFace Transformers (`transformers`)
+- HuggingFace Accelerate (`accelerate`)
+- Datasets (`datasets`)
+- scikit-learn (`scikit-learn`)
+- pandas, numpy, tqdm
+- (Optional) vLLM for LLM-based labeling (`vllm`)
+- (Optional) Development: pytest, black, flake8
 
 ### Environment Configuration
 

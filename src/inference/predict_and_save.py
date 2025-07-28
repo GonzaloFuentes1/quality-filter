@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import AutoModelForSequenceClassification
 
-# ---------------- etiquetas ----------------
+# ---------------- labels -------------------
 TASK_LABELS = {
     "quality": [
         "coherence",
@@ -48,7 +48,7 @@ class Predictor:
         self.acc = Accelerator()
         self.out_path.mkdir(parents=True, exist_ok=True)
 
-        # ruta al dataset “crudo”
+        # path to the "raw" dataset
         if original_dataset_path:
             self.orig_path = Path(original_dataset_path)
         else:
@@ -84,7 +84,7 @@ class Predictor:
         )
         self.model, self.dl = self.acc.prepare(model, dl)
 
-    # ---------- infer ----------
+    # ---------- inference ----------
     @torch.no_grad()
     def _infer(self):
         self.model.eval()
@@ -116,11 +116,11 @@ class Predictor:
     # ---------- save ----------
     def _save(self, preds: np.ndarray):
         ds_plain = self.ds_orig
-        # borra columnas con mismo nombre (si existen)
+        # remove columns with the same name (if they exist)
         for label in self.labels:
             if label in ds_plain.column_names:
                 ds_plain = ds_plain.remove_columns(label)
-        # añade columnas → valores python float, no tensores/arrays
+        # add columns → python float values, not tensors/arrays
         for i, label in enumerate(self.labels):
             column_vals = [float(x) for x in preds[:, i]]
             ds_plain = ds_plain.add_column(label, column_vals)
@@ -136,8 +136,9 @@ class Predictor:
         if preds is not None:
             self._save(preds)
 
-
 # ---------------- CLI ----------------
+
+
 def parse_threshold(txt: str):
     txt = txt.strip()
     if txt.startswith("["):

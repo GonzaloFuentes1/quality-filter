@@ -1,3 +1,4 @@
+
 import argparse
 import json
 import logging
@@ -7,7 +8,9 @@ import re
 from datasets import Dataset
 from vllm import LLM, SamplingParams
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4,5,6,7"
+import config
+
+os.environ["CUDA_VISIBLE_DEVICES"] = config.CUDA_VISIBLE_DEVICES
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,7 +18,8 @@ logging.basicConfig(
 )
 
 MAX_CHARACTERS = 5000
-TEXT_OUTPUT_DIR = ""
+TEXT_OUTPUT_DIR = getattr(config, 'LABEL_QUALITY_OUTPUT_DIR',
+                          os.path.join(config.DATA_DIR, 'label_quality_outputs'))
 
 
 def load_base_prompt(prompt_path):

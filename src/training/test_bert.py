@@ -1,3 +1,4 @@
+
 import argparse
 import json
 import os
@@ -8,7 +9,9 @@ from datasets import Dataset
 from sklearn.metrics import f1_score, precision_recall_fscore_support
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+import config
+
+os.environ["CUDA_VISIBLE_DEVICES"] = config.INFERENCE_CUDA_VISIBLE_DEVICES
 
 
 def load_json_data(json_path, label_keys):

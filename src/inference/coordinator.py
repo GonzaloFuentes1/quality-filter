@@ -1,5 +1,5 @@
 """
-Pipeline con Accelerate — filtro_idioma ➜ calidad ➜ toxicidad  (encadenado)
+Pipeline with Accelerate — language_filter ➜ quality ➜ toxicity (chained)
 """
 import os
 import signal
@@ -8,30 +8,32 @@ import sys
 from pathlib import Path
 from typing import List
 
-# ---------- CONFIG ----------
-QUALITY_MODEL = Path(
-    "")
-TOKENIZE_SCRIPT = Path(
-    "")
-PREDICT_SCRIPT = Path(
-    "")
+# =====================
+# Import config
+# =====================
+import config
 
-DATA_DIR = Path("")
-PIPE_ROOT = Path("")
+QUALITY_MODEL = Path(config.QUALITY_MODEL)
+TOKENIZE_SCRIPT = Path(config.TOKENIZE_SCRIPT)
+PREDICT_SCRIPT = Path(config.PREDICT_SCRIPT)
+
+DATA_DIR = Path(config.DATA_DIR)
+PIPE_ROOT = Path(getattr(config, 'PIPE_ROOT', config.DATA_DIR))
 CALIDAD_DIR = PIPE_ROOT / "calidad"
 TOKENS_DIR = PIPE_ROOT / "tokens"
 
-MAX_LEN = 512
-BATCH_SIZE = 2048
-TOKENIZE_NUM_WORKERS = 120
-DATA_LOADER_NUM_WORKERS = 120
-THRESHOLD = 0.5
-# ---------------------------------
+MAX_LEN = getattr(config, 'COORDINATOR_MAX_LEN', 512)
+BATCH_SIZE = getattr(config, 'COORDINATOR_BATCH_SIZE', 2048)
+TOKENIZE_NUM_WORKERS = getattr(config, 'COORDINATOR_TOKENIZE_NUM_WORKERS', 120)
+DATA_LOADER_NUM_WORKERS = getattr(config, 'COORDINATOR_DATA_LOADER_NUM_WORKERS', 120)
+THRESHOLD = getattr(config, 'COORDINATOR_THRESHOLD', 0.5)
 
 
-# ---------- helpers ----------
+################################
+# helpers
+################################
 def run(cmd: List[str], *, env: dict | None = None):
-    """Ejecuta cmd en un nuevo grupo de procesos y propaga SIGINT/SIGTERM."""
+    """Run cmd in a new process group and propagate SIGINT/SIGTERM."""
     print("Ejecutando:", " ".join(cmd))
     proc = subprocess.Popen(cmd, env=env, start_new_session=True)
 

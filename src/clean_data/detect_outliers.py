@@ -1,21 +1,24 @@
 import argparse
 import json
 import os
+
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
+from datasets import Dataset
 from sklearn.model_selection import KFold
 from transformers import (
-    AutoTokenizer,
     AutoModelForSequenceClassification,
+    AutoTokenizer,
+    Trainer,
     TrainingArguments,
-    Trainer
 )
-from datasets import Dataset
+
+import config
 
 os.environ["WANDB_DISABLED"] = "true"
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = config.cuda_visible_devices
 
 
 def load_json_data(json_path, label_keys):
@@ -39,7 +42,7 @@ def tokenize_dataset(df, tokenizer):
             examples["text"],
             padding="max_length",
             truncation=True,
-            max_length=512
+            max_length=config.max_length
         )
     dataset = Dataset.from_pandas(df)
     return dataset.map(tokenize_function, batched=True)
@@ -77,9 +80,9 @@ def detect_outliers(
         )
 
         args = TrainingArguments(
-            output_dir=f"{output_path}/fold_{fold}",
+            output_dir=os.path.join(output_path, f"fold_{fold}"),
             num_train_epochs=2,
-            per_device_train_batch_size=64,
+            per_device_train_batch_size=config.batch_size,
             per_device_eval_batch_size=16,
             eval_strategy='no',
             save_strategy='no',
@@ -133,11 +136,11 @@ def main():
         help="Ruta al archivo JSON original."
     )
     parser.add_argument(
-        "--output_dir", type=str, required=True,
+        "--output_dir", type=str, default=config.default_output_dir,
         help="Directorio de salida."
     )
     parser.add_argument(
-        "--model_name", type=str, default="xlm-roberta-base",
+        "--model_name", type=str, default=config.default_model_name,
         help="Modelo preentrenado."
     )
     parser.add_argument(

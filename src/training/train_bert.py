@@ -1,6 +1,10 @@
+
 import argparse
 import json
 import os
+
+# Import global config
+import sys
 from typing import Any, Dict, Tuple
 
 import numpy as np
@@ -18,9 +22,14 @@ from transformers import (
     TrainingArguments,
 )
 
+import config
+
 # === Environment setup ===
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Disable Weights & Biases logging
 os.environ["WANDB_MODE"] = "disabled"
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+# Set CUDA devices from config
+os.environ["CUDA_VISIBLE_DEVICES"] = config.CUDA_VISIBLE_DEVICES
 
 
 def undersample_data(
@@ -172,34 +181,35 @@ def compute_metrics(eval_pred: Any, threshold: float) -> Dict[str, float]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Entrenamiento multilabel classification"
+        description="Multilabel classification training script"
     )
     parser.add_argument(
-        "--json_path", required=True, help="Ruta al archivo JSON"
+        "--json_path", required=False, default=config.DATA_DIR,
+        help="Path to the input JSON file (default: config.DATA_DIR)"
     )
     parser.add_argument(
-        "--output_dir", required=True,
-        help="Directorio base para guardar el modelo"
+        "--output_dir", required=False, default=config.MODEL_PATH,
+        help="Base directory to save the model (default: config.MODEL_PATH)"
     )
     parser.add_argument(
-        "--logging_dir", required=True,
-        help="Directorio base para guardar logs de entrenamiento"
+        "--logging_dir", required=False, default=os.path.join(config.MODEL_PATH, 'log'),
+        help="Base directory to save training logs (default: MODEL_PATH/log)"
     )
     parser.add_argument(
-        "--model_name", required=True,
-        help="Nombre del modelo preentrenado"
+        "--model_name", required=False, default="bert-base-uncased",
+        help="Pretrained model name (default: bert-base-uncased)"
     )
     parser.add_argument(
         "--label_ids", nargs="+", type=int, required=True,
-        help="Índices de los labels en moderationCategories"
+        help="Indices of the labels in moderationCategories"
     )
     parser.add_argument(
         "--threshold", type=float, default=0.5,
-        help="Threshold para etiquetas binarias"
+        help="Threshold for binary labels (default: 0.5)"
     )
     parser.add_argument(
         "--balance_method", choices=["undersample", "oversample"],
-        help="Método de balanceo para entrenamiento"
+        help="Balancing method for training (optional)"
     )
     args = parser.parse_args()
 
@@ -229,19 +239,19 @@ def main() -> None:
             examples["text"],
             padding="max_length",
             truncation=True,
-            max_length=512
+            max_length=config.MAX_LENGTH
         )
 
     tokenized_datasets = dataset.map(tokenize_function, batched=True)
 
-    config = AutoConfig.from_pretrained(
+    config_model = AutoConfig.from_pretrained(
         args.model_name,
         num_labels=len(args.label_ids),
         problem_type="multi_label_classification"
     )
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        args.model_name, config=config
+        args.model_name, config=config_model
     )
 
     training_args = TrainingArguments(
@@ -252,8 +262,8 @@ def main() -> None:
         metric_for_best_model="eval_f1",
         greater_is_better=True,
         learning_rate=2e-5,
-        per_device_train_batch_size=32,
-        per_device_eval_batch_size=32,
+        per_device_train_batch_size=config.BATCH_SIZE,
+        per_device_eval_batch_size=config.BATCH_SIZE,
         num_train_epochs=5,
         weight_decay=0.01,
         warmup_ratio=0.1,

@@ -1,6 +1,10 @@
+import os
+
 import pandas as pd
 
-# Lista de columnas permitidas (ajusta según tu dataset)
+import config
+
+# List of allowed columns (adjust according to your dataset)
 COLUMNAS_PERMITIDAS = [
     "coherencia",
     "desinformacion",
@@ -12,7 +16,8 @@ COLUMNAS_PERMITIDAS = [
     "texto"
 ]
 
-# Métricas numéricas que pueden ser usadas para balanceo
+
+# Numeric metrics that can be used for balancing
 METRICAS_NUMERICAS = [
     "coherencia",
     "desinformacion",
@@ -36,20 +41,20 @@ def count_positivos(df, metrica, threshold=0.5):
 
 
 def encontrar_metrica_limitante(dfs, threshold=0.5):
-    """Encuentra la métrica que tiene menos valores positivos en total."""
+    """Finds the metric with the fewest positive values in total."""
     conteos_por_metrica = {}
-    
+
     for metrica in METRICAS_NUMERICAS:
-        # Verificar que la métrica existe en todos los dataframes
+        # Check that the metric exists in all dataframes
         if all(metrica in df.columns for df in dfs.values()):
             total_positivos = sum(
                 count_positivos(df, metrica, threshold) for df in dfs.values()
             )
             conteos_por_metrica[metrica] = total_positivos
-    
+
     if not conteos_por_metrica:
-        raise ValueError("No se encontraron métricas válidas en todos los dataframes")
-    
+        raise ValueError("No valid metrics found in all dataframes")
+
     metrica_limitante = min(conteos_por_metrica, key=conteos_por_metrica.get)
     return metrica_limitante, conteos_por_metrica
 
@@ -71,7 +76,7 @@ def balancear_todos_los_idiomas(json_paths: dict, threshold=0.5):
 
     # Encontrar la métrica limitante
     metrica_limitante, conteos_por_metrica = encontrar_metrica_limitante(dfs, threshold)
-    
+
     print(f"Conteo de valores >= {threshold} por métrica:")
     for metrica, count in conteos_por_metrica.items():
         print(f"  {metrica}: {count}")
@@ -89,7 +94,7 @@ def balancear_todos_los_idiomas(json_paths: dict, threshold=0.5):
     print(f"\nUsaremos {n_minimos} positivos + {n_minimos} negativos por idioma.")
 
     balanceados = {
-        lang: balancear_por_metrica(df, n_pos=n_minimos, metrica=metrica_limitante, 
+        lang: balancear_por_metrica(df, n_pos=n_minimos, metrica=metrica_limitante,
                                     threshold=threshold)
         for lang, df in dfs.items()
     }
@@ -102,21 +107,18 @@ def balancear_todos_los_idiomas(json_paths: dict, threshold=0.5):
 
 
 if __name__ == "__main__":
+
+    # Use config for input and output paths
     rutas = {
-        "balanceado": (
-            ""
-            ""
-        )
+        "balanceado": config.SPLIT_LANG_INPUT_PATH
     }
 
     df_balanceado = balancear_todos_los_idiomas(
-        rutas, threshold=0.5
+        rutas, threshold=config.CLEAN_DATA_THRESHOLD
     )
 
-    output_path = (
-        ""
-        ""
-    )
+    output_path = os.path.join(config.DATA_DIR,
+                               f"balanced_texts_{config.N_SAMPLES}.json")
     df_balanceado.to_json(
         output_path,
         orient="records",

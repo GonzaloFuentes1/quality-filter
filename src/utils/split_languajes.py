@@ -1,13 +1,20 @@
+
 import json
+import os
+
+# Import config for utils
+import sys
 from multiprocessing import Pool
 
 from langdetect import detect
 from tqdm import tqdm
 
-n_samples = ""
-input_path = (
-    ""
-)
+import config
+
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+# Use config for input path and n_samples
+n_samples = getattr(config, 'N_SAMPLES', "")
+input_path = getattr(config, 'SPLIT_LANG_INPUT_PATH', "")
 
 
 def detectar_idioma(entry):
@@ -31,9 +38,9 @@ with Pool(processes=100) as pool:
     )
 
 
-# ------------------------------
-# Agrupar por idioma
-# ------------------------------
+################################
+# Group by language
+################################
 es, en, pt = [], [], []
 for lang, entry in results:
     if lang == "es":
@@ -48,9 +55,9 @@ for lang, entry in results:
         )
 
 
-# ------------------------------
-# Guardar resultados
-# ------------------------------
+################################
+# Save results
+################################
 with open(
     f"test_textos_es_{n_samples}.json", "w", encoding="utf-8"
 ) as f:
@@ -68,5 +75,5 @@ with open(
 
 
 print(
-    f"Separados: {len(es)} español, {len(en)} inglés, {len(pt)} portugués."
+    f"Separated: {len(es)} Spanish, {len(en)} English, {len(pt)} Portuguese."
 )
