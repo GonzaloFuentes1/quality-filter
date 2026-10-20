@@ -18,7 +18,7 @@ from transformers import (
 import config
 
 os.environ["WANDB_DISABLED"] = "true"
-os.environ["CUDA_VISIBLE_DEVICES"] = config.cuda_visible_devices
+os.environ["CUDA_VISIBLE_DEVICES"] = config.CLEAN_DATA_CUDA_VISIBLE_DEVICES
 
 
 def load_json_data(json_path, label_keys):
@@ -42,7 +42,7 @@ def tokenize_dataset(df, tokenizer):
             examples["text"],
             padding="max_length",
             truncation=True,
-            max_length=config.max_length
+            max_length=config.MAX_LENGTH
         )
     dataset = Dataset.from_pandas(df)
     return dataset.map(tokenize_function, batched=True)
@@ -82,7 +82,7 @@ def detect_outliers(
         args = TrainingArguments(
             output_dir=os.path.join(output_path, f"fold_{fold}"),
             num_train_epochs=2,
-            per_device_train_batch_size=config.batch_size,
+            per_device_train_batch_size=config.BATCH_SIZE,
             per_device_eval_batch_size=16,
             eval_strategy='no',
             save_strategy='no',
@@ -136,11 +136,11 @@ def main():
         help="Ruta al archivo JSON original."
     )
     parser.add_argument(
-        "--output_dir", type=str, default=config.default_output_dir,
+        "--output_dir", type=str, default=config.CLEAN_DATA_OUTPUT_DIR,
         help="Directorio de salida."
     )
     parser.add_argument(
-        "--model_name", type=str, default=config.default_model_name,
+        "--model_name", type=str, default=config.CLEAN_DATA_MODEL_NAME,
         help="Modelo preentrenado."
     )
     parser.add_argument(

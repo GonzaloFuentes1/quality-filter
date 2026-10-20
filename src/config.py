@@ -30,6 +30,7 @@ Sections:
     - Inference configuration
     - Clean data configuration
     - Label quality configuration
+    - GPU configuration
     - Utils configuration
 """
 
@@ -110,6 +111,7 @@ CLEAN_DATA_THRESHOLD = get_env('CLEAN_DATA_THRESHOLD', 0.5, float)
 CLEAN_DATA_CUDA_VISIBLE_DEVICES = get_env(
     'CLEAN_DATA_CUDA_VISIBLE_DEVICES', '0'
 )
+CLEAN_DATA_MODEL_NAME = get_env('CLEAN_DATA_MODEL_NAME', 'xlm-roberta-base')
 CLEAN_DATA_OUTPUT_DIR = get_env(
     'CLEAN_DATA_OUTPUT_DIR', os.path.join(DATA_DIR, 'clean_data_outputs')
 )
@@ -133,60 +135,19 @@ LABEL_QUALITY_INPUT_PATH = get_env(
 
 
 # =====================
-# Add more global parameters below as needed
-# =====================
-
-"""
-config.py
-Centralized configuration file for paths and global parameters.
-All scripts should import from this file to avoid hardcoded values.
-
-Sections:
-    - General paths
-    - Training configuration
-    - Inference configuration
-    - Clean data configuration
-    - Label quality configuration
-    - GPU configuration
-    - Utils configuration
-"""
-
-# =====================
-# General paths
-# =====================
-DATA_DIR = os.getenv('DATA_DIR', os.path.join(os.path.dirname(__file__), '../data'))
-MODEL_PATH = os.getenv('MODEL_PATH',
-                       os.path.join(os.path.dirname(__file__), '../model'))
-
-# =====================
-# Training configuration
-# =====================
-BATCH_SIZE = int(os.getenv('BATCH_SIZE', 32))  # Default batch size
-MAX_LENGTH = int(os.getenv('MAX_LENGTH', 128))  # Default max sequence length
-NUM_EPOCHS = int(os.getenv('NUM_EPOCHS', 5))  # Default number of epochs
-TRAIN_LOG_DIR = os.getenv('TRAIN_LOG_DIR', os.path.join(MODEL_PATH, 'logs'))
-
-# =====================
-# Inference configuration
-# =====================
-INFER_BATCH_SIZE = int(os.getenv('INFER_BATCH_SIZE', 64))
-INFER_NUM_WORKERS = int(os.getenv('INFER_NUM_WORKERS', 4))
-
-# =====================
-# Clean data configuration
-# =====================
-CLEAN_DATA_THRESHOLD = float(os.getenv('CLEAN_DATA_THRESHOLD', 0.5))
-
-# =====================
-# Label quality configuration
-# =====================
-LABEL_QUALITY_OUTPUT_DIR = os.getenv('LABEL_QUALITY_OUTPUT_DIR',
-                                     os.path.join(DATA_DIR, 'label_quality_outputs'))
-
-# =====================
 # GPU configuration
 # =====================
-CUDA_VISIBLE_DEVICES = os.getenv('CUDA_VISIBLE_DEVICES', '0')
+# Used by train_bert.py and label_quality.py
+CUDA_VISIBLE_DEVICES = get_env('CUDA_VISIBLE_DEVICES', '0')
+
+# =====================
+# Utils configuration
+# =====================
+# Used by split_languajes.py and undersampling.py
+N_SAMPLES = get_env('N_SAMPLES', '')
+SPLIT_LANG_INPUT_PATH = get_env(
+    'SPLIT_LANG_INPUT_PATH', os.path.join(DATA_DIR, 'split_lang_input.json')
+)
 
 # =====================
 # Add more global parameters below as needed
